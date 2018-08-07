@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: "{{ .Release.Name }}-config"
 data:
-  index.html |
-  {{ default "<html><body>Hello from Helm!</body></html>" .Values.IndexHTML }}
+  index.html: |
+    {{ default "<html><body>Hello from Helm!</body></html>" .Values.IndexHTML }}

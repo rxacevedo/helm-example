@@ -1,14 +1,15 @@
+{{- if .Values.sqlServer.enabled }}
 apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: {{ template "nginx-configurable-index.fullname" . }}
+  name: {{ template "nginx-configurable-index.fullname" . }}-sqlserver
   labels:
     app: {{ template "nginx-configurable-index.name" . }}
     chart: {{ template "nginx-configurable-index.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   selector:
     matchLabels:
       app: {{ template "nginx-configurable-index.name" . }}
@@ -19,34 +20,29 @@ spec:
         app: {{ template "nginx-configurable-index.name" . }}
         release: {{ .Release.Name }}
     spec:
-      {{- if .Values.IndexHTML }}
-      volumes:
-      - name: config
-        configMap:
-          name: {{ .Release.Name }}-config
-      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "microsoft/mssql-server-linux:{{ .Values.sqlServer.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            - name: SA_PASSWORD
+              value: {{ default "yourStrong(!)Password" .Values.sqlServer.password }}
           ports:
-            - name: http
-              containerPort: 80
+            - name: sql
+              containerPort: 1433
               protocol: TCP
           livenessProbe:
-            httpGet:
-              path: /
-              port: http
+            tcpSocket:
+              port: sql
+            initialDelaySeconds: 5
+            periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          {{- if .Values.IndexHTML }}
-          volumeMounts:
-            - name: config
-              readOnly: true
-              mountPath: /usr/share/nginx/html/
-          {{- end }}
+            tcpSocket:
+              port: sql
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
 {{ toYaml .Values.resources | indent 12 }}
     {{- with .Values.nodeSelector }}
@@ -61,3 +57,4 @@ spec:
       tolerations:
 {{ toYaml . | indent 8 }}
     {{- end }}
+{{- end }}
